@@ -139,6 +139,17 @@ def test_api_routes_contract_and_cors(monkeypatch):
                 )
                 assert preflight.status_code == 200
                 assert preflight.headers["access-control-allow-origin"] == "http://localhost:5173"
+                vercel_preflight = client.options(
+                    "/health",
+                    headers={
+                        "Origin": "https://vanta-git-main-example.vercel.app",
+                        "Access-Control-Request-Method": "GET",
+                    },
+                )
+                assert vercel_preflight.status_code == 200
+                assert vercel_preflight.headers["access-control-allow-origin"] == (
+                    "https://vanta-git-main-example.vercel.app"
+                )
         finally:
             asyncio.run(close_database())
             get_settings.cache_clear()

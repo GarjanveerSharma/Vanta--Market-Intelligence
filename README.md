@@ -55,9 +55,9 @@ The free Render service may sleep when idle, so first requests can take time whi
 
 ## Deploy the web app to Vercel
 
-1. Import the repository into Vercel and keep the root directory at the repository root. `vercel.json` builds `web/` and rewrites SPA paths to `index.html`.
+1. Import the repository into Vercel and set the project root directory to `web`. The root `vercel.json` builds the frontend from that directory and rewrites SPA paths to `index.html`.
 2. Set Vercel’s `VITE_API_URL` to the Render API URL, for example `https://vanta-api.onrender.com`.
-3. Set Render’s `ALLOWED_ORIGINS` to your Vercel production origin (and any preview origins you want to allow), comma-separated. For example: `https://vanta.vercel.app,https://vanta-git-preview.vercel.app`.
+3. Vercel `.vercel.app` production and preview origins are allowed by the API CORS configuration. If using a custom frontend domain, set Render’s `ALLOWED_ORIGINS` to that origin, for example `https://vanta.example.com`.
 4. Redeploy both services after changing environment variables.
 
 ## UptimeRobot
