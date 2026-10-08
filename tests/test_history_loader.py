@@ -53,6 +53,56 @@ def test_history_loader_rejects_unsupported_intervals():
         asyncio.run(history_loader.load_recent_candles(["BTCUSDT"], "2m"))
 
 
+def test_history_loader_uses_public_fallback_to_seed_full_candle_history(monkeypatch):
+    published = []
+    requested = []
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return [
+                [1700000000000, "100", "102", "99", "101", "12.5"],
+                [1700000060000, "101", "103", "100", "102", "13.5"],
+            ]
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, params):
+            requested.append(url)
+            if url.startswith("https://primary.example"):
+                raise history_loader.httpx.ConnectError("primary unavailable")
+            assert params == {"symbol": "BTCUSDT", "interval": "1m", "limit": 120}
+            return Response()
+
+    async def publish(event):
+        published.append(event)
+
+    settings = history_loader.get_settings()
+    monkeypatch.setattr(settings, "binance_rest_url", "https://primary.example")
+    monkeypatch.setattr(history_loader.httpx, "AsyncClient", lambda timeout: Client())
+    monkeypatch.setattr(history_loader, "publish_candle", publish)
+
+    asyncio.run(history_loader.load_recent_candles(["BTCUSDT"], "1m"))
+
+    assert requested == [
+        "https://primary.example/api/v3/klines",
+        "https://data-api.binance.vision/api/v3/klines",
+    ]
+    assert len(published) == 2
+    assert published[0]["historical"] is True
+    assert published[0]["bootstrap_latest"] is False
+    assert published[1]["historical"] is True
+    assert published[1]["bootstrap_latest"] is True
+    assert published[1]["close"] == 102.0
+
+
 def test_latest_candle_loader_uses_public_fallback_and_publishes_live_candle(monkeypatch):
     published = []
     requested = []

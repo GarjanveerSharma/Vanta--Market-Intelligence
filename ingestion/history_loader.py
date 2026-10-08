@@ -23,15 +23,37 @@ async def load_recent_candles(
         raise ValueError("history limit must be between 1 and 1000")
 
     settings = get_settings()
+    base_urls = list(dict.fromkeys((
+        settings.binance_rest_url.rstrip("/"),
+        FALLBACK_REST_URL,
+    )))
     async with httpx.AsyncClient(timeout=15) as client:
         for symbol in symbols:
+            rows = None
             try:
-                response = await client.get(
-                    f"{settings.binance_rest_url}/api/v3/klines",
-                    params={"symbol": symbol.upper(), "interval": interval, "limit": limit},
-                )
-                response.raise_for_status()
-                rows = response.json()
+                for base_url in base_urls:
+                    try:
+                        response = await client.get(
+                            f"{base_url}/api/v3/klines",
+                            params={"symbol": symbol.upper(), "interval": interval, "limit": limit},
+                        )
+                        response.raise_for_status()
+                        rows = response.json()
+                        break
+                    except httpx.HTTPError as error:
+                        logger.warning(
+                            "History request failed for %s via %s: %s",
+                            symbol.upper(),
+                            base_url,
+                            error,
+                        )
+                if rows is None:
+                    logger.error(
+                        "Could not load %s candle history for %s from any Binance REST endpoint",
+                        interval,
+                        symbol.upper(),
+                    )
+                    continue
                 for index, row in enumerate(rows):
                     await publish_candle({
                         "symbol": symbol.upper(),
@@ -51,8 +73,8 @@ async def load_recent_candles(
                     interval,
                     symbol.upper(),
                 )
-            except (httpx.HTTPError, ValueError, IndexError, KeyError, TypeError):
-                logger.exception("Could not seed recent Binance candles for %s", symbol.upper())
+            except (ValueError, IndexError, KeyError, TypeError):
+                logger.exception("Could not parse recent Binance candles for %s", symbol.upper())
 
 
 async def load_latest_candles(symbols: list[str], interval: str) -> int:
