@@ -27,7 +27,8 @@ export function useApiQuery<T>(queryKey: readonly unknown[], queryFn: () => Prom
   return useQuery({
     queryKey,
     queryFn,
-    refetchInterval: realtimeStatus === "connected" ? false : 5000,
+    refetchInterval: (query) =>
+      query.state.status === "error" || realtimeStatus !== "connected" ? 5000 : false,
     retry: false,
   });
 }

@@ -61,6 +61,8 @@ function updateCaches(client: QueryClient, update: MarketUpdate): void {
         return outcome ? { ...alert, outcome } : alert;
       }));
     });
+    void client.invalidateQueries({ queryKey: ["track-record"] });
+    void client.invalidateQueries({ queryKey: ["calibration-changes"] });
   }
 
   const newAlerts = update.alerts ?? [];
