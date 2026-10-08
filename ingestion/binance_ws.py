@@ -3,19 +3,20 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from urllib.parse import urlencode
 
-import httpx
 import yaml
 from websockets.asyncio.client import connect
 
 from config.settings import get_settings
-from ingestion.history_loader import load_recent_candles
+from ingestion.history_loader import load_latest_candles, load_recent_candles
 from ingestion.news_fetcher import run_news_fetcher
 from ingestion.publisher import publish_candle
 
 logger = logging.getLogger(__name__)
 HISTORY_LIMIT = 120
+REST_POLL_INTERVAL_SECONDS = 5
 
 
 def load_symbols(path: str) -> list[str]:
@@ -69,9 +70,18 @@ async def consume_market_data() -> None:
                     await publish_candle(candle)
         except asyncio.CancelledError:
             raise
-        except Exception:
-            logger.exception("Binance websocket failed; reconnecting in %s seconds", delay)
-            await asyncio.sleep(delay)
+        except Exception as error:
+            logger.exception(
+                "Binance websocket failed (%s); polling REST candles while reconnecting",
+                error,
+            )
+            retry_at = time.monotonic() + delay
+            while True:
+                await load_latest_candles(symbols, interval)
+                remaining = retry_at - time.monotonic()
+                if remaining <= 0:
+                    break
+                await asyncio.sleep(min(REST_POLL_INTERVAL_SECONDS, remaining))
             delay = min(delay * 2, 60)
 
 

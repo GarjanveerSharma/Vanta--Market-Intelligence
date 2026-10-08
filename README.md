@@ -36,7 +36,7 @@ Requirements: Python 3.11+, Node.js 20+, and npm.
    npm run build
    ```
 
-To use another browser origin, set `ALLOWED_ORIGINS` to a comma-separated list of origins. Binance market data is public. If Binance is unavailable, ingestion logs the error and retries; API errors are not returned as fabricated backend data.
+To use another browser origin, set `ALLOWED_ORIGINS` to a comma-separated list of origins. Binance market data is public. If Binance's WebSocket is unavailable, ingestion polls Binance's public REST kline endpoints (including its market-data mirror) every five seconds while retrying the WebSocket. If REST endpoints are also unavailable, ingestion logs the errors and retries; API errors are not returned as fabricated backend data.
 
 ## Signal evaluation
 
