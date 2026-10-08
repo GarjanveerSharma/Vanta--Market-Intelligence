@@ -4,6 +4,8 @@ Vanta is a real-time cryptocurrency signal service with a FastAPI backend and a 
 
 Signals are automated and can be wrong. They are not financial advice.
 
+## Live : https://vanta-market-intelligence-topaz.vercel.app/
+
 ## Local development
 
 Requirements: Python 3.11+, Node.js 20+, and npm.
