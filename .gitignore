@@ -1,0 +1,53 @@
+# Environment secrets (keep checked-in examples).
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.env
+!*.env.example
+web/.env*
+!web/.env.example
+
+# Local databases and data exports.
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite*
+*.parquet
+data/*
+!data/.gitkeep
+backtest/data/
+backtest_data/
+
+# Python build/runtime artifacts.
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+
+# Model outputs; keep the directory marker.
+detection/models/*
+!detection/models/.gitkeep
+detection/models/*.pkl
+detection/models/*.joblib
+
+# Frontend dependencies/build/cache.
+node_modules/
+web/dist/
+.vite/
+.vercel/
+
+# Logs and editor/OS files.
+logs/
+*.log
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,8 @@
+symbols:
+  - BTCUSDT
+  - ETHUSDT
+  - SOLUSDT
+  - BNBUSDT
+  - XRPUSDT
+interval: 1m
+history_limit: 120

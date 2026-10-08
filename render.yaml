@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: vanta-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m api.main
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.1
+      - key: APP_ENV
+        value: production
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: REDIS_URL
+        value: memory://
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:5173
+      - key: DATABASE_URL
+        sync: false
