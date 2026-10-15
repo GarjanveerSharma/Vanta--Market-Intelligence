@@ -26,6 +26,7 @@ const NAV = [
 
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [failureSince, setFailureSince] = useState<number | null>(Date.now());
   const [clock, setClock] = useState(Date.now());
@@ -39,6 +40,12 @@ export default function App() {
     queryFn: api.health,
     refetchInterval: 10_000,
     retry: false,
+  });
+  const notificationAlerts = useQuery({
+    queryKey: ["notification-panel-alerts"],
+    queryFn: () => api.alerts(),
+    enabled: notificationsOpen,
+    refetchInterval: notificationsOpen ? 30_000 : false,
   });
   const isLive = realtime === "connected" || (health.isSuccess && !health.isError && health.data.status === "ok");
   const [retryAge, setRetryAge] = useState(0);
@@ -78,11 +85,32 @@ export default function App() {
     await queryClient.invalidateQueries();
   };
   const waitingForServer = !isLive && failureSince !== null && retryAge < 90_000;
+  const localClock = new Date(clock).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+  const utcClock = new Date(clock).toLocaleString("en-GB", {
+    timeZone: "UTC",
+    dateStyle: "medium",
+    timeStyle: "medium",
+  });
+  const toggleBrowserAlerts = async () => {
+    if (preferences.notifications_enabled) {
+      updatePreferences({ notifications_enabled: false });
+      return;
+    }
+    if (typeof Notification === "undefined") return;
+    const permission = Notification.permission === "default"
+      ? await Notification.requestPermission()
+      : Notification.permission;
+    updatePreferences({ notifications_enabled: permission === "granted" });
+  };
 
   return <div className="app-shell">
     <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
       <Link to="/" className="brand-lockup" aria-label="Vanta home">
-        <img src="/vanta-logo-dark.svg" alt="" className="brand-logo" />
+        <img src="/vanta-icon-small.svg" alt="" className="brand-logo" />
         <span className="brand-copy"><strong>VANTA</strong><small>MARKET INTELLIGENCE</small></span>
         <button className="icon-button sidebar-close" onClick={(event) => { event.preventDefault(); setMenuOpen(false); }} aria-label="Close menu"><X size={19} /></button>
       </Link>
@@ -108,10 +136,35 @@ export default function App() {
         <button className="icon-button mobile-menu" onClick={() => setMenuOpen(true)} aria-label="Open navigation"><Menu size={20} /></button>
         <div className="breadcrumb"><span>Terminal</span><span className="crumb-slash">/</span><strong>{NAV.find((item) => item.to === location.pathname)?.label ?? "Live Market"}</strong></div>
         <div className="topbar-right">
-          <div className="market-clock"><span className="clock-dot" />MARKET OPEN <span className="clock-divider">·</span><span>{new Date(clock).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC</span></div>
-          <button className="topbar-alert" onClick={() => navigate("/alerts")} aria-label="Open alerts"><Bell size={17} />{unread > 0 && <i />}</button>
+          <div className="market-clock" title={`UTC ${utcClock}`}><span className={`clock-dot ${isLive ? "is-live" : "is-offline"}`} />{isLive ? "LIVE" : "OFFLINE"} <span className="clock-divider">·</span><time>{localClock}</time></div>
+          <button className="topbar-alert" onClick={() => setNotificationsOpen((open) => !open)} aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ""}`} aria-expanded={notificationsOpen}>
+            <Bell size={17} />{unread > 0 && <span className="unread-badge">{unread > 99 ? "99+" : unread}</span>}
+          </button>
         </div>
       </header>
+      {notificationsOpen && <div className="notification-scrim" onClick={() => setNotificationsOpen(false)}>
+        <section className="notification-panel" role="dialog" aria-modal="false" aria-labelledby="notification-title" onClick={(event) => event.stopPropagation()}>
+          <div className="notification-panel-head">
+            <div><h2 id="notification-title">Notifications</h2><span>{unread} unread</span></div>
+            <button className="icon-button" aria-label="Close notifications" onClick={() => setNotificationsOpen(false)}><X size={18} /></button>
+          </div>
+          <div className="notification-panel-actions">
+            <button className="text-button" onClick={() => setUnread(0)} disabled={unread === 0}>Mark all read</button>
+            <button className={`toggle ${preferences.notifications_enabled ? "on" : ""}`} type="button" role="switch" aria-label="Browser alerts" aria-checked={preferences.notifications_enabled} onClick={() => void toggleBrowserAlerts()} disabled={typeof Notification === "undefined" || Notification.permission === "denied"}><i /></button>
+            <span>{typeof Notification === "undefined" ? "Browser alerts unsupported" : Notification.permission === "denied" ? "Alerts blocked in browser settings" : "Browser alerts"}</span>
+          </div>
+          <div className="notification-panel-list">
+            {notificationAlerts.isLoading && <p className="muted">Loading recent alerts…</p>}
+            {notificationAlerts.isError && <p className="notification-error">{notificationAlerts.error.message}</p>}
+            {notificationAlerts.data?.length === 0 && <p className="muted">No recent alerts.</p>}
+            {[...(notificationAlerts.data ?? [])].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 6).map((alert) => <button key={alert.id} className="notification-item" onClick={() => { setNotificationsOpen(false); setUnread(0); navigate(`/alerts?alert=${alert.id}`); }}>
+              <span className={`action-pill action-${alert.action.toLowerCase()}`}>{alert.action}</span>
+              <span><b>{alert.symbol.replace("USDT", "")}</b><small>{alert.event_type} · {Math.round(alert.confidence * 100)}%</small></span>
+              <time>{new Date(alert.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
+            </button>)}
+          </div>
+        </section>
+      </div>}
       <main className="page-content">
         {!isLive && <section className={`server-status ${waitingForServer ? "is-waking" : "is-unreachable"}`} role="status">
           {waitingForServer

@@ -15,6 +15,7 @@ import {
   WatchlistTable,
 } from "../components/MarketWidgets";
 import { EmptyState, ErrorNotice, PageTitle, Panel } from "../components/Shared";
+import { MoodMeter, useUsdInrRate } from "../features/insights";
 
 export default function LiveMarket() {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export default function LiveMarket() {
   const [interval, setInterval] = useState(preferences.default_interval);
   const [markersEnabled, setMarkersEnabled] = useState(true);
   const [markerFilter, setMarkerFilter] = useState<Signal["signal"] | "ALL">("ALL");
+  const fxQuery = useUsdInrRate();
   const signalsQuery = useSignals();
   const signals = signalsQuery.data ?? [];
   const selected = signals.find((signal) => signal.symbol === symbol);
@@ -57,12 +59,15 @@ export default function LiveMarket() {
         <Panel className="chart-panel">
           <div className="chart-toolbar">
             <div className="asset-heading">
-              <div className={`coin-icon coin-${coinName(activeSymbol).toLowerCase()}`}>{coinName(activeSymbol).slice(0, 1)}</div>
+              <div className={`coin-icon coin-${coinName(activeSymbol).toLowerCase()}`}>{coinName(activeSymbol)}</div>
               <div>
                 <div className="asset-symbol">{coinName(activeSymbol)} <span>/ USDT</span></div>
                 <div className="asset-price">
-                  {selected ? money(selected.price) : "—"}
+                  {selected ? <PriceValue value={selected.price} /> : "—"}
                   <span className={selected && selected.change_1h < 0 ? "negative" : "positive"}>{selected ? pct(selected.change_1h) : "—"} <small>1h</small></span>
+                </div>
+                <div className="asset-price-inr">
+                  {selected && fxQuery.data ? `≈ ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(selected.price * fxQuery.data.rate)}` : fxQuery.isError ? "INR equivalent unavailable" : "Loading INR equivalent…"}
                 </div>
               </div>
             </div>
@@ -82,6 +87,7 @@ export default function LiveMarket() {
             <CandlestickChart
               candles={candles}
               signal={selected}
+              symbol={activeSymbol}
               interval={interval}
               alerts={chartMarkers}
               markersEnabled={markersEnabled}
@@ -104,11 +110,22 @@ export default function LiveMarket() {
         </Panel>
       </div>
       <div className="market-aside">
-        <SignalCard signal={selected} loading={signalsQuery.isLoading} />
+        <SignalCard signal={selected} loading={signalsQuery.isLoading} interval={interval} />
+        <MoodMeter />
         <Panel title="Recent alerts" subtitle={`Latest signals for ${coinName(activeSymbol)}`} className="recent-alerts" action={<Link className="text-button" to="/alerts">View all</Link>}>
           {alertsQuery.isLoading ? <div className="loading-rows"><div className="skeleton" /></div> : alertsQuery.isError ? <ErrorNotice compact message={alertsQuery.error.message} /> : recentAlerts.length ? <div className="recent-list">{recentAlerts.map((alert: Alert) => <MiniAlert key={alert.id} alert={alert} />)}</div> : <EmptyState title="No recent alerts" copy="New signals for this market will show up here." />}
         </Panel>
       </div>
     </div>
   </motion.div>;
+}
+
+function PriceValue({ value }: { value: number }) {
+  const formatted = money(value);
+  const decimalAt = formatted.lastIndexOf(".");
+  if (decimalAt < 0) return <span>{formatted}</span>;
+  return <>
+    <span>{formatted.slice(0, decimalAt)}</span>
+    <span className="price-decimals">{formatted.slice(decimalAt)}</span>
+  </>;
 }

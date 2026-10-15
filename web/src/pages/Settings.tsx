@@ -54,7 +54,7 @@ export default function SettingsPage() {
     <div className="settings-layout"><div className="settings-main">
       <Panel title="Market watchlist" subtitle="Select assets to show in the market overview" className="settings-panel">
         {symbols.length ? <div className="coin-picker">{symbols.map((symbol) => <button key={symbol} className={`coin-option ${preferences.watchlist.includes(symbol) ? "checked" : ""}`} onClick={() => toggleWatchlist(symbol)} aria-pressed={preferences.watchlist.includes(symbol)}>
-          <span className={`tiny-coin coin-${coinName(symbol).toLowerCase()}`}>{coinName(symbol).slice(0, 1)}</span>
+          <span className={`tiny-coin coin-${coinName(symbol).toLowerCase()}`}>{coinName(symbol)}</span>
           <span><b>{coinName(symbol)}</b><small>{symbol}</small></span>
           <i>{preferences.watchlist.includes(symbol) && <Check size={16} />}</i>
         </button>)}</div> : <EmptyState title="No assets available yet" copy="The watchlist will populate when live symbols are configured." />}
@@ -71,7 +71,7 @@ export default function SettingsPage() {
       <Panel title="Browser alerts" subtitle="Notifications are sent only while this tab is open" className="settings-panel">
         <div className="notification-setting">
           <div className="notification-copy"><Bell size={17} /><div><b>Enable alerts</b><small>{permission === "granted" && preferences.notifications_enabled ? "Enabled" : permission === "denied" ? "Blocked — allow notifications in your browser site settings." : permission === "unsupported" ? "Not supported by this browser; in-app toasts are used." : "Allow desktop notifications for qualifying alerts."}</small></div></div>
-          <button className="button button-subtle" onClick={enableNotifications} disabled={permission === "unsupported" || (permission === "granted" && preferences.notifications_enabled)}>
+          <button className="button button-subtle" onClick={enableNotifications} disabled={permission === "unsupported" || permission === "denied" || (permission === "granted" && preferences.notifications_enabled)}>
             {permission === "granted" && preferences.notifications_enabled ? "Enabled" : permission === "denied" ? "Blocked" : permission === "unsupported" ? "Not supported" : "Enable alerts"}
           </button>
         </div>

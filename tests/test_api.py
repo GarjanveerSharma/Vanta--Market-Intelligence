@@ -92,6 +92,8 @@ def test_api_routes_contract_and_cors(monkeypatch):
                 assert metrics.status_code == 200
                 assert "sentinel_http_requests_total" in metrics.text
                 alerts = client.get("/alerts").json()
+                alert_time = datetime.fromisoformat(alerts[0]["time"].replace("Z", "+00:00"))
+                assert alert_time.utcoffset() == timedelta(0)
                 assert alerts[0]["regime"] == "TRENDING_UP"
                 assert alerts[0]["timeframe_agreement"]["15m"] is False
                 assert "track_record" in alerts[0]
@@ -122,7 +124,10 @@ def test_api_routes_contract_and_cors(monkeypatch):
                 assert signals[0]["timeframe_agreement"]["15m"] is False
                 assert signals[0]["filter_version"] == "mtf-v1"
                 assert "track_record" in signals[0]
-                assert len(client.get("/signals/candles?symbol=BTCUSDT").json()) == 25
+                candles = client.get("/signals/candles?symbol=BTCUSDT").json()
+                assert len(candles) == 25
+                candle_time = datetime.fromisoformat(candles[0]["time"].replace("Z", "+00:00"))
+                assert candle_time.utcoffset() == timedelta(0)
                 backtest = client.get("/backtest/results?symbol=BTCUSDT")
                 assert backtest.status_code == 200
                 assert {"total_alerts", "equity", "by_event"} <= backtest.json().keys()

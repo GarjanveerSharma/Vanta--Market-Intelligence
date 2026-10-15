@@ -49,8 +49,10 @@ export function applyTheme(theme: ViewerPreferences["theme"]): void {
       : theme;
     document.documentElement.dataset.theme = resolved;
     document.documentElement.dataset.themePreference = theme;
+    document.documentElement.classList.toggle("dark", resolved === "dark");
   } catch {
     document.documentElement.dataset.theme = "dark";
     document.documentElement.dataset.themePreference = theme;
+    document.documentElement.classList.add("dark");
   }
 }

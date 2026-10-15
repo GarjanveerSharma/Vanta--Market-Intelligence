@@ -39,6 +39,11 @@ def merge_candle_history(
 ) -> list[dict[str, object]]:
     if limit < 1:
         raise ValueError("history limit must be positive")
-    merged = {pd.Timestamp(candle["time"]).value: dict(candle) for candle in seeded}
-    merged.update({pd.Timestamp(candle["time"]).value: dict(candle) for candle in live})
+    merged: dict[int, dict[str, object]] = {}
+    for source in (seeded, live):
+        for candle in source:
+            timestamp = pd.to_datetime(candle["time"], utc=True)
+            normalized = dict(candle)
+            normalized["time"] = timestamp.to_pydatetime()
+            merged[timestamp.value] = normalized
     return sorted(merged.values(), key=lambda candle: pd.Timestamp(candle["time"]).value)[-limit:]

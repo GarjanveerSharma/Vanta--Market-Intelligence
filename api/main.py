@@ -5,6 +5,7 @@ import os
 import time
 import asyncio
 from contextlib import asynccontextmanager
+from insights.routes import router as insights_router
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -74,6 +75,7 @@ app.include_router(backtest_router)
 app.include_router(track_record_router)
 app.include_router(websocket_router)
 app.include_router(health_router)
+app.include_router(insights_router)
 
 
 @app.middleware("http")

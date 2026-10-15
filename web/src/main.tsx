@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./styles.css";
+import "@fontsource/space-grotesk/400.css";
+import "@fontsource/space-grotesk/700.css";
 import { RealtimeBridge } from "./api/realtime";
 import { ViewerPreferencesProvider } from "./components/ViewerPreferences";
 

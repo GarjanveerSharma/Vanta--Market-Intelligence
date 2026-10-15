@@ -29,16 +29,26 @@ async def get_candles(
     symbol: str,
     interval: str = "1m",
     limit: int = Query(default=120, ge=2, le=1000),
-) -> list[Candle]:
+) -> list[dict[str, object]]:
     intervals = {"1m": 1, "5m": 5, "15m": 15}
     if interval not in intervals:
         raise HTTPException(status_code=422, detail="Supported intervals are 1m, 5m, and 15m")
     multiplier = intervals[interval]
     if multiplier == 1:
-        rows = list(reversed(await list_candles(session, symbol.upper(), "1m", limit)))
+        rows = await list_candles(session, symbol.upper(), "1m", limit)
         if not rows:
             raise HTTPException(status_code=404, detail="No candles available for this symbol and interval")
-        return rows
+        return merge_candle_history([
+            {
+                "time": row.time,
+                "open": row.open,
+                "high": row.high,
+                "low": row.low,
+                "close": row.close,
+                "volume": row.volume,
+            }
+            for row in rows
+        ], [], limit)
 
     stored_rows = list(reversed(await list_candles(
         session, symbol.upper(), interval, limit,

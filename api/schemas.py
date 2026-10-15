@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+
+
+def _normalize_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
 class CandleOut(BaseModel):
@@ -13,6 +17,11 @@ class CandleOut(BaseModel):
     low: float
     close: float
     volume: float
+
+    @field_validator("time")
+    @classmethod
+    def time_is_utc(cls, value: datetime) -> datetime:
+        return _normalize_utc(value)
 
 
 class SignalOut(BaseModel):
@@ -51,6 +60,11 @@ class AlertOut(BaseModel):
     hit_rate_pct: float | None = None
     sample_count: int = 0
     outcome: Literal["correct", "wrong", "pending"] = "pending"
+
+    @field_validator("time")
+    @classmethod
+    def time_is_utc(cls, value: datetime) -> datetime:
+        return _normalize_utc(value)
 
 
 class TrackRecordGroup(BaseModel):

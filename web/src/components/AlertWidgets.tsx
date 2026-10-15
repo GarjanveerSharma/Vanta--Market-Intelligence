@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { Alert } from "../api/types";
 import { SignalOutcome } from "./Shared";
 import { coinName, eventName, money, percent } from "./format";
+import { SignalBreakdown } from "../features/insights";
 
 export function SummaryCard({ label, value, icon, accent = "" }: { label: string; value: string; icon: ReactNode; accent?: string }) {
   return <div className={`summary-card ${accent}`}><div className="summary-icon">{icon}</div><div><span>{label}</span><b>{value}</b></div></div>;
@@ -27,6 +28,10 @@ export function AlertCard({ alert, index }: { alert: Alert; index: number }) {
         <span className="track-note"><Activity size={13} />{track}</span>
         <SignalOutcome alert={alert} />
       </div>
+      <details className="alert-breakdown">
+        <summary>Why this signal?</summary>
+        <SignalBreakdown symbol={alert.symbol} at={alert.time} compact />
+      </details>
     </div>
     <div className="alert-score"><span>CONFIDENCE</span><b>{percent(alert.confidence)}</b><div><i style={{ width: `${Number.isFinite(alert.confidence) ? alert.confidence * 100 : 0}%` }} /></div></div>
   </motion.article>;

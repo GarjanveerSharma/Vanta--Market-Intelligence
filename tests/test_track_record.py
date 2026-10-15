@@ -115,7 +115,37 @@ def test_live_resampled_bars_override_seeded_bars_with_matching_timestamp():
         "close": 104,
         "volume": 10,
     }]
-    assert merge_candle_history(seeded, live) == live
+    merged = merge_candle_history(seeded, live)
+    assert merged[0]["time"] == stamp
+    assert merged[0]["open"] == 101
+    assert merged[0]["close"] == 104
+
+
+def test_merge_normalizes_naive_and_aware_times_to_utc_and_sorts():
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    candles = [
+        {
+            "time": start.replace(tzinfo=None) + timedelta(minutes=5),
+            "open": 105,
+            "high": 106,
+            "low": 104,
+            "close": 105,
+            "volume": 10,
+        },
+        {
+            "time": start.isoformat(),
+            "open": 100,
+            "high": 101,
+            "low": 99,
+            "close": 100,
+            "volume": 10,
+        },
+    ]
+
+    merged = merge_candle_history(candles, [])
+
+    assert [candle["time"] for candle in merged] == [start, start + timedelta(minutes=5)]
+    assert all(candle["time"].utcoffset() == timedelta(0) for candle in merged)
 
 
 def test_live_processor_persists_regime_and_three_timeframe_agreement(monkeypatch):
