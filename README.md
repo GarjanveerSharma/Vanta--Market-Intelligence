@@ -1,93 +1,91 @@
+<div align="center">
+
 # Vanta
 
-Vanta is a real-time cryptocurrency signal service with a FastAPI backend and a responsive React terminal. The backend ingests public Binance candles, detects rule-based events and market regimes, records signal outcomes, and exposes its data through JSON endpoints. Explanations are deterministic templates; no LLM or paid inference service is used.
 
-Signals are automated and can be wrong. They are not financial advice.
+### Real-time crypto signals that measure their own accuracy
 
-## Live : https://vanta-market-intelligence-topaz.vercel.app/
+[**Live demo →**](https://vanta-market-intelligence-topaz.vercel.app/)
 
-## Local development
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![WebSockets](https://img.shields.io/badge/WebSockets-live-000000?style=flat-square)
+![Deployed on Vercel + Render](https://img.shields.io/badge/deploy-Vercel%20%2B%20Render-000000?style=flat-square)
 
-Requirements: Python 3.11+, Node.js 20+, and npm.
+</div>
 
-1. Copy `.env.example` to `.env`. The defaults use SQLite and the in-process queue; no Redis account or market-data API key is needed.
-2. Install Python dependencies and start the backend from the repository root:
+---
 
-   ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   python -m pip install -r requirements.txt
-   python -m api.main
-   ```
+Most signal tools tell you **what** to do. Vanta also tells you **how often it has been right**.
 
-   The API, Binance ingestion, market processor, outcome evaluator, calibration, and cleanup scheduler run in one process. The API listens on `PORT` (or `API_PORT`, default `8000`).
-3. In another terminal, start the React app:
+It streams live Binance data for **BTC, ETH, SOL, BNB and XRP**, detects market events, turns them into BUY / SELL / HOLD / AVOID signals, and then checks every signal afterwards, so each one comes with its own track record.
 
-   ```powershell
-   cd web
-   npm ci
-   npm run dev
-   ```
+## What makes it different
 
-   Open <http://localhost:5173>. The app calls `VITE_API_URL` (defaults to `http://localhost:8000`), uses a WebSocket for live price, candle, signal and alert updates, and falls back to polling if the socket cannot connect. It never substitutes demo prices.
-4. Run the backend tests and frontend production build:
+| | |
+|---|---|
+| ✅ **Self-measured accuracy** | Every signal is re-checked 15, 30 and 60 minutes later. Each alert shows its real hit rate, like *"right 61% of the time, 44 signals"*. |
+| 🔧 **Self-calibration** | Rules that keep failing get stricter thresholds automatically, within safe limits, and every change is logged. |
+| 🧭 **Regime-aware** | ADX and ATR classify the market as trending, sideways or high-volatility. Counter-trend signals are suppressed. |
+| ⏱ **Multi-timeframe confirmation** | A signal is confirmed only when the 1m, 5m and 15m timeframes agree. |
+| 📊 **Honest backtesting** | Sharpe, drawdown and win rate after fees and slippage, compared against buy-and-hold and 300 random signal sets. |
+| 🔍 **Explainable** | "Why this signal?" shows which factors (RSI, momentum, trend, volume, volatility) pushed it bullish or bearish. |
+| 🌡 **Market Mood Meter** | A 0–100 fear/greed gauge built from Vanta's own live data. |
 
-   ```powershell
-   python -m pytest -q
-   cd web
-   npm run build
-   ```
+No AI or paid APIs: signals are deterministic rules, so every result can be reproduced and audited.
 
-To use another browser origin, set `ALLOWED_ORIGINS` to a comma-separated list of origins. Binance market data is public. If Binance's WebSocket is unavailable, ingestion polls Binance's public REST kline endpoints (including its market-data mirror) every five seconds while retrying the WebSocket. If REST endpoints are also unavailable, ingestion logs the errors and retries; API errors are not returned as fabricated backend data.
+## Tech stack
 
-## Signal evaluation
+**Backend:** Python, FastAPI, SQLAlchemy (async), PostgreSQL, WebSockets, NumPy/pandas
+**Frontend:** React, TypeScript, Vite, TanStack Query, TradingView Lightweight Charts
+**Infra:** Render (API), Vercel (web), Docker, Prometheus
 
-The detector uses ADX(14) and ATR(14) on 15-minute candles to classify trends, sideways markets, and high volatility. RSI reversal signals against an established trend are suppressed. Directional confirmation uses 1m, 5m, and 15m frames: 3/3 is confirmed, 2/3 is partial with reduced confidence, and fewer matching frames produce HOLD. High volatility lowers confidence and widens stop-loss levels.
+## Run locally
 
-Outcomes are checked at 15, 30, and 60 minutes. A directional hit requires a price move greater than `OUTCOME_MOVE_THRESHOLD_PCT` in the predicted direction. Track-record summaries use mature 60-minute outcomes from the last 30 days and require 10 samples before showing a hit rate. Daily calibration tightens thresholds only for event types with at least `CALIBRATION_MIN_SAMPLES` outcomes and hit rate below `CALIBRATION_LOW_HIT_RATE_PCT`, bounded by `CALIBRATION_CONFIDENCE_MIN` and `CALIBRATION_CONFIDENCE_MAX`. Each change is recorded in the calibration log. Changing calibration state requires `ADMIN_API_KEY` via the `X-Admin-Key` header. Data cleanup runs daily (1m candles older than 7 days and alerts/outcomes older than 90 days).
+Requires Python 3.11+ and Node.js 20+. No API keys needed: Binance market data is public.
 
-## Deploy the API to Render with Neon
+```bash
+# Backend
+cp .env.example .env
+python -m venv .venv && source .venv/bin/activate   # Windows: .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m api.main                                   # http://localhost:8000
 
-1. Create a free Neon Postgres database and copy its connection string. For SQLAlchemy async use, prefix the driver with `postgresql+asyncpg://` and retain Neon’s SSL query parameters.
-2. Create a Render Blueprint from this repository and select `render.yaml`. The blueprint creates the free `vanta-api` web service, installs `requirements.txt`, starts `python -m api.main`, and checks `/health`.
-3. Set the Render `DATABASE_URL` environment variable to the Neon connection string. `REDIS_URL=memory://` keeps ingestion and processing in the same web-service process. Render provides `PORT`.
-4. Wait for the Render health check to pass and note the service URL, such as `https://vanta-api.onrender.com`.
-
-The free Render service may sleep when idle, so first requests can take time while it wakes. Its local filesystem is ephemeral; Neon is required for persistent production data.
-
-## Deploy the web app to Vercel
-
-1. Import the repository into Vercel and set the project root directory to `web`. The root `vercel.json` builds the frontend from that directory and rewrites SPA paths to `index.html`.
-2. Set Vercel’s `VITE_API_URL` to the Render API URL, for example `https://vanta-api.onrender.com`.
-3. Vercel `.vercel.app` production and preview origins are allowed by the API CORS configuration. If using a custom frontend domain, set Render’s `ALLOWED_ORIGINS` to that origin, for example `https://vanta.example.com`.
-4. Redeploy both services after changing environment variables.
-
-## UptimeRobot
-
-Create an HTTPS monitor for `https://<your-render-service>.onrender.com/health`. An HTTP(S) keyword monitor can check for `"status":"ok"`. Pinging this endpoint periodically also reduces idle sleep, subject to Render’s free-service policies.
-
-## Optional Docker development
-
-Copy `.env.example` to `.env`, set a local `POSTGRES_PASSWORD`, then run `docker compose up --build` to start the API, a local Postgres database, and Prometheus. The API runs the same in-process ingestion, processing, and scheduler workers as the Render service. The React frontend remains a separate Vite app in `web/`.
-
-## Environment variables
-
-See [`.env.example`](./.env.example) for backend configuration, tuning values, the optional admin key, frontend API URL, Docker Postgres password placeholder, and local defaults. Viewer preferences are saved only in browser localStorage. Keep real credentials in `.env` or deployment secrets; `.env` is ignored by Git.
-
-## Project layout
-
-- `api/`, `storage/`: FastAPI endpoints, schemas, and database persistence.
-- `ingestion/`, `processing/`: Binance/news ingestion and signal processing.
-- `detection/`, `advisor/`, `alerts/`: deterministic rules, regime filters, explanations, and alert evaluation.
-- `evaluation/`, `jobs/`: 30-day track-record statistics, calibration, outcome tracking, and scheduled cleanup.
-- `web/`: React + TypeScript UI, charts, WebSocket updates, and Vercel deployment configuration.
-- `backtest/`: historical replay and metrics.
-- `monitoring/`: Prometheus scrape configuration.
-
-## Tests
-
-```powershell
-python -m pytest -q
+# Frontend (new terminal)
 cd web
-npm run build
+npm ci
+npm run dev                                          # http://localhost:5173
 ```
+
+Run the tests:
+
+```bash
+python -m pytest -q
+cd web && npm run build
+```
+
+## Project structure
+
+```
+api/          FastAPI routes and WebSocket
+ingestion/    Binance streaming with REST fallback
+processing/   Candle aggregation and features
+detection/    Rules, regime filter, timeframe confirmation
+evaluation/   Outcome tracking, track record, calibration
+insights/     Market mood, signal breakdown, quant metrics
+web/          React terminal
+```
+
+## Deployment
+
+The API runs on **Render** with a Postgres database, and the web app on **Vercel** (root directory `web`, with `VITE_API_URL` pointing to the API). See `render.yaml` and `.env.example` for configuration.
+
+---
+
+<div align="center">
+
+<sub>Signals are automated and can be wrong. Vanta is a learning project, not financial advice.</sub>
+
+</div>
